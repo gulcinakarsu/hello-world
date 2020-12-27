@@ -1,6 +1,6 @@
 ---
 title: "STAT 497 & IAM 526 Recitation 7"
-author: "Gülçin Akarsu"
+author: "Ozancan Ozdemir"
 output:
   html_document: default
   word_document: default
