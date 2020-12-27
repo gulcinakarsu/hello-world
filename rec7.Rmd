@@ -1,0 +1,592 @@
+---
+title: "STAT 497 & IAM 526 Recitation 7"
+author: "Ozancan Ozdemir"
+output:
+  html_document: default
+  word_document: default
+---
+
+**Forecasting In Time Series**
+
+One of the main objectives in time series analysis is forecasting and there are several methods proposed for this purpose in the literature.
+
+
+**Simple Exponential Smoothing**
+
+
+It is a time series forecasting method for univariate data without a trend or seasonality. In other words, s.e.s should only be used for forecasting series that have no trend or seasonality. 
+
+The exponential smoother generates a forecast at time t + 1 as follows;
+
+$S_{t+1}=\alpha Y_t + \alpha (1-\alpha)Y_{t-1}+...$ where $\alpha$ is a constant between 0 and 1 called smoothing constant.
+
+
+**Example 1**
+
+Please load ```lynx ``` dataset. The dataset contains annual numbers of lynx trappings for 1821–1934 in Canada.
+
+
+```{r}
+data(lynx)
+```
+
+
+```{r}
+head(lynx) #see first 6 observations.
+```
+
+
+```{r}
+plot(lynx,main="Time Series Plot of Annual Numbers of lynx Trappings",ylab="Numbers of Lynx",col="red")
+```
+
+
+In order to obtain forecast values from simple exponential smoothing, use ```ses``` function under forecast package.
+
+```
+ses(y, h = 10, level = c(80, 95), fan = FALSE,
+  initial = c("optimal", "simple"), alpha = NULL, lambda = NULL,
+  biasadj = FALSE, x = y, ...)
+```
+
+y:	a numeric vector or time series of class ts
+
+h:	Number of periods for forecasting.
+
+alpha: Value of smoothing parameter for the level. If NULL, it will be estimated.
+
+inital: Method used for selecting initial state values.
+
+
+Divide dataset into two components which are train and test. In this example, we will consider 85% of the dataset as train data, and 20% of the dataset as test data. 
+
+```{r}
+index=1:length(lynx)
+train=1:round(0.85*length(lynx)) #index of observations in train data
+test=index[-train]
+```
+
+
+```{r}
+lynx_train=lynx[train]
+lynx_test=lynx[test]
+```
+
+
+```{r}
+library(forecast)
+ses_forecast1=ses(lynx_train,h=length(test),alpha = 0.2,initial = "simple")
+ses_forecast2=ses(lynx_train,h=length(test),alpha = 0.4,initial = "simple")
+ses_forecast3=ses(lynx_train,h=length(test),alpha = 0.6,initial = "simple")
+```
+
+
+```{r}
+summary(ses_forecast1) #to see the summary of the forecasts
+```
+
+**Plotting Forecast Values**
+
+First, we draw the plot of train data and fitted values coming from forecast models.
+
+**fitted is a generic function which extracts fitted values from objects returned by modeling functions.**
+
+```{r}
+ts.plot(lynx_train,xlim=c(0,120))
+lines(fitted(ses_forecast1), col="blue", type="o") 
+lines(fitted(ses_forecast2), col="red", type="o")
+lines(fitted(ses_forecast3), col="green", type="o")
+lines(lynx_test)
+lines(ses_forecast1$mean, col="blue", type="o")
+lines(ses_forecast2$mean, col="red", type="o")
+lines(ses_forecast3$mean, col="green", type="o")
+legend("topright",lty=1, col=c(1,"blue","red","green"), 
+       c("data", expression(alpha == 0.2), expression(alpha == 0.4),
+         expression(alpha == 0.6)),pch=1)
+
+```
+
+**Compare the methods**
+
+For comparing the forecast methods, we will consider several accuracy measures such as MASE, MAPE, MAE. To obtain such measures, we use ```accuracy``` function.
+
+```{r}
+accuracy(ses_forecast1) #accuracy of fitted observations
+```
+
+```{r}
+accuracy(ses_forecast1$mean,lynx_test) #accuracy of forecast observations
+```
+
+```{r}
+accuracy(ses_forecast2) #accuracy of fitted observations
+```
+
+```{r}
+accuracy(ses_forecast2$mean,lynx_test) #accuracy of forecast observations
+```
+
+```{r}
+accuracy(ses_forecast3) #accuracy of fitted observations
+```
+
+```{r}
+accuracy(ses_forecast3$mean,lynx_test) #accuracy of forecast observations
+```
+
+Select the forecasting method having the smallest comparison criteria selected. Thus, for this example, SES with $\alpha=0.6$ produce the better forecast values compared to other techniques.
+
+**Double Exponential Smoothing / Holt's Exponential Smoothing**
+
+For series that contain a trend, we can use double exponential smoothing, also called Holt’s linear trend model. In double exponential smoothing, the local trend is  estimated from the data and is updated as more data becomes  available.
+
+**SES+Trend=DES**
+
+```
+holt(y, h = 10, damped = FALSE, level = c(80, 95), fan = FALSE,
+  initial = c("optimal", "simple"), exponential = FALSE,
+  alpha = NULL, beta = NULL, phi = NULL, lambda = NULL,
+  biasadj = FALSE, x = y, ...)
+```
+
+
+damped	:If TRUE, use a damped trend.
+
+exponential	:If TRUE, an exponential trend is fitted. Otherwise, the trend is (locally) linear.
+
+
+**Example 2**
+
+Please load ```elecsales``` dataset being available in ```fpp``` package. The dataset can be described as annual electricity sales for South Australia in GWh from 1989 to 2008. 
+
+```{r}
+library(fpp)
+data(elecsales)
+elecsales
+```
+
+```{r}
+plot(elecsales,main="TS Plot of Elecsales",col="red")
+```
+
+Divide your datasets. Now, I will consider first 16 observations as the train data. 
+
+```{r}
+e_train=ts(elecsales[1:16],start=1989)
+e_test=ts(elecsales[17:20],start=2005)
+```
+
+```{r}
+fit1 <- ses(e_train,h=4) #☻number of periods for forecasting
+fit2 <- holt(e_train,h=4)
+fit3 <- holt(e_train,exponential=TRUE,h=4)
+fit4 <- holt(e_train,damped=TRUE,h=4)
+```
+
+```{r}
+accuracy(fit1,e_test)
+accuracy(fit2,e_test)
+accuracy(fit3,e_test)
+accuracy(fit4,e_test)
+```
+
+
+Since we made both train and test set as ts object, accuracy function give comparison measure values for both training and test set when we include test set in accuracy function.
+
+At the end, the best forecasting method for this data is 
+
+
+**Plotting the forecast values and test set**
+
+```{r}
+plot(fit2, type="o", ylab="Annual electricity sales for South Australia", flwd=1)
+lines(e_test,type="o")
+lines(fit1$mean,col="red")
+lines(fit3$mean,col="yellow")
+lines(fit4$mean,col="orange")
+
+legend("topleft", lty=1, pch=1, col=c(1,"red","blue","yellow","orange"), c("Data","SES","Holt's","Exponential", "Additive Damped"))
+
+```
+
+
+**Holt's Winter Exponential Smoothing**
+
+For series that contain both trend and seasonality, the Holt- Winter’s exponential smoothing method can be used. This is a further extension of double exponential smoothing, where the k-step-ahead forecast also takes into account the season at period
+t + k. As for trend, there exist formulations for additive and multiplicative seasonality. In multiplicative seasonality, values on different seasons differ by percentage amounts, whereas in additive seasonality, they differ by a fixed amount.
+
+
+```
+ets(y, model = "ZZZ", damped = NULL, alpha = NULL, beta = NULL,
+  gamma = NULL, phi = NULL, additive.only = FALSE, lambda = NULL,
+  biasadj = FALSE, lower = c(rep(1e-04, 3), 0.8),
+  upper = c(rep(0.9999, 3), 0.98), opt.crit = c("lik", "amse", "mse",
+  "sigma", "mae"), nmse = 3, bounds = c("both", "usual", "admissible"),
+  ic = c("aicc", "aic", "bic"), restrict = TRUE,
+  allow.multiplicative.trend = FALSE, use.initial.values = FALSE,
+  na.action = c("na.contiguous", "na.interp", "na.fail"), ...)
+```
+
+y:	 a numeric vector or time series of class ts
+
+model:	 Usually a three-character string identifying method using the framework terminology of Hyndman et al. (2002) and Hyndman et al. (2008). The first letter denotes the error type ("A", "M" or "Z"); the second letter denotes the trend type ("N","A","M" or "Z"); and the third letter denotes the season type ("N","A","M" or "Z"). In all cases, "N"=none, "A"=additive, "M"=multiplicative and "Z"=automatically selected. So, for example, "ANN" is simple exponential smoothing with additive errors, "MAM" is multiplicative Holt-Winters' method with multiplicative errors, and so on.
+
+
+**Example 3**
+
+Consider ```cafe``` data set containing the total quarterly expenditure on cafes, restaurants and takeway food services in Australia (1982:Q2-2010:Q4).
+
+```{r}
+library(fpp)
+```
+
+```{r}
+plot(cafe,main="TS Plot of Total Quarterly Expenditure on Cafes",col="red")
+```
+
+
+```{r}
+cafe_train=ts(cafe[1:107],start=c(1982,2),frequency = 4) #I use start=c(1982,2) since my observations starts at 2nd quarter. 
+cafe_test=ts(cafe[108:115],start=2009,frequency = 4)
+
+```
+
+```{r}
+fit1=ets(cafe_train,model="ZZZ") #The algorithm automatically decides type of the components.
+
+```
+
+forecast is a generic function for forecasting from time series or time series models. 
+
+```{r}
+fr1=forecast(fit1,h=8) #h represents the forecast horizons. i,e I have 8 forecast observations.
+fr1
+```
+
+```{r}
+plot(fr1)
+```
+
+When you draw the plot of forecast values obtained from the forecast function, the forecast plot shows both forecast observations and prediction intervals on the same plot. We aim to find the method having narrower interval compared to others. 
+
+
+
+```{r}
+fit2=ets(cafe_train,model='MMM')
+fr2=forecast(fit2)
+plot(forecast(fit2))
+```
+
+
+```{r}
+fit3=auto.arima(cafe_train)
+fr3=forecast(fit3)
+plot(forecast(fit3))
+```
+
+
+Compare the models with respect to comparison criterias.
+
+```{r}
+accuracy(fr1,cafe_test)
+```
+
+
+```{r}
+accuracy(fr2,cafe_test)
+```
+
+
+```{r}
+accuracy(fr3,cafe_test)
+```
+
+At the end, we can say that the best forecasting method ............. according to ......... criteria. 
+
+
+**Example 4**
+
+Please consider Monthly Production Dataset between Dec 1965-Dec 1 that we used in Recitation 6. For this data set, we applied **Box-Cox Transformation**.  Then, we suggest the following models using both graphical ways and auto.arima function.
+
++ $SARIMA(1,1,1)(1,1,1)_{12}$.
+
++ $SARIMA(0,1,1)(0,1,1)_{12}$.
+ 
+```{r}
+prod=ts(read.csv("prod.csv",header=F),start=c(1965,12),frequency=12)
+#start=c(year,month)
+```
+
+After reading the dataset, to compare the methods, we divide the dataset into two parts. 
+```{r}
+prod_train=ts(prod[1:96],start=c(1965,12),frequency=12)
+```
+
+```{r}
+prod_test=ts(prod[97:108],start=c(1973,12),frequency = 12)
+```
+
+Now,  we applied Box-Cox transformation to trained dataset. 
+
+```{r}
+lambda=BoxCox.lambda(prod_train)
+lambda
+```
+
+Now, we apply BoxCox Transformation to trained data set for $\lambda= -0.2193545$.
+
+```{r}
+prod_train_transformed=BoxCox(prod_train,lambda = lambda)
+```
+
+Now, we fit the models that we identified last recitation.
+
+```{r}
+sfit1=Arima(prod_train_transformed, order = c(1, 1, 1), seasonal = list(order=c(1, 1, 1),period=12))
+
+```
+
+
+```{r}
+sfit2=Arima(prod_train_transformed, order = c(0, 1, 1), seasonal = list(order=c(0, 1, 1),period=12))
+
+```
+
+
+There are several ways of getting forecast values from fitted ARIMA models.
+
+```{r}
+#first way of getting forecast
+ff=forecast(sfit1,h=12)
+ff$mean
+```
+
+
+```{r}
+# another way of getting forecast
+ff1=predict(sfit1,n.ahead=12)
+ff1$pred
+```
+
+
+```{r}
+#or
+library(astsa)
+ff2=sarima.for(prod_train_transformed, 12, p=1, d=1, q=1, P = 1, D = 1, Q = 1, S = 12, no.constant = FALSE)
+ff2$pred
+```
+
+```sarima.for``` function under astsa library produces both forecast values and forecast plot with prediction intervals.
+
+
+As you see above examples, there are several ways to obtain forecast values from fitted (s)arima models. To go further, select the one way (say forecast function.)
+
+```{r}
+ff$mean #forecast values from first fit.
+```
+
+```{r}
+ff_2=forecast(sfit2,h=12)
+ff_2$mean
+```
+
+Let me remind you last 6 observation of the train dataset.
+
+```{r}
+tail(prod_train)
+```
+
+As you can observed that after applying BoxCox transformation, the scale of the dataset is changed. That's why you need to go to original series after obtaining the forecast values from the transformed dataset. 
+
+```
+InvBoxCox(x, lambda, biasadj = FALSE, fvar = NULL)
+
+```
+
+The function calculates the inverse Box-Cox transformation of a variable. Requires arguments x and lambda.
+
+
+```{r}
+ff_original=InvBoxCox(ff$mean,lambda=lambda)
+ff_original
+```
+
+```{r}
+ff_2_original=InvBoxCox(ff_2$mean,lambda=lambda)
+ff_2_original
+```
+
+Now, we can calculate accuracy measures and draw the plot of the forecast values.
+
+
+
+```{r}
+accuracy(ff_original,prod_test)
+```
+
+
+```{r}
+accuracy(ff_2_original,prod_test)
+```
+
+
+Now, we draw the plot of the time series, forecasts and prediction intervals on the same plot using the following codes. 
+
+```{r}
+plot(prod)
+abline(v=1974)#show where forecast starts
+lines(ff_original,col="red") #forecast values coming from fit 1
+#now we add prediction intervals for the first fitted models.
+lines(ff_original-(2*(sqrt(var(ff_original)))),col="red",lty=3)
+lines(ff_original+(2*(sqrt(var(ff_original)))),col="red",lty=3)
+#now we add forecast values obtained from the fit 2
+lines(ff_2_original,col="blue")
+#now we add prediction intervals for the second fitted models.
+lines(ff_2_original-(2*(sqrt(var(ff_original)))),col="red",lty=3)
+lines(ff_2_original+(2*(sqrt(var(ff_original)))),col="red",lty=3)
+
+legend("topleft",lty=1, col=c("black","red","blue"),c("Data","SARIMA(1,1,1)(1,1,1)","SARIMA(0,1,1)(0,1,1)"))
+
+```
+
+
+Therefore, we can say that the best forecasting method for the process is ...........
+
+**IN YOUR PROJECT, YOU CAN USE SEVERAL PACKAGES TO DRAW DIFFERENT PLOTS.**
+
+**Question**
+
+Please read the annual_bond_yield.txt dataset (Annual bond yield, U.S., 1900 to 1970 ) used in Recitation 6 using the following code. 
+
+```{r}
+bond=ts(read.table("annual_bond_yield.txt"),start=1900,frequency = 1)
+```
+
+1. Keep last 5 observations out of the analysis and create both train and test data. 
+
+```{r}
+train=ts(bond[1:364],start=1900,frequency = 1) #create the train data
+test=ts(bond[365:369],start=2264,frequency = 1)
+```
+
+
+
+2. Apply the Box-Cox transformation on your train data if it is necessary by generating lambda value.
+
+```{r}
+library(forecast)
+lambda=BoxCox.lambda(train)
+lambda
+```
+
+Since the generated lambda value for the train dataset is almost 2. Therefore, we should apply boxcox transformation since lambda value is **different than 1**
+
+```{r}
+train_t=BoxCox(train,lambda)
+```
+
+
+
+3. In the previous recitation we suggest the following model for the series. 
+
+
+$ARIMA (0,2,1)$                             
+
+$ARIMA (0,2,2)$
+
+$ARIMA (3,2,1)$
+
+Fit the models and obtain the forecasts. 
+
+
+```{r}
+library(forecast)
+fit1<-Arima(train_t,order = c(0, 2, 1))
+f1=forecast(fit1,h=5)
+```
+
+
+```{r}
+fit2<-Arima(train_t,order = c(0, 2, 2))
+f2=forecast(fit2,h=5)
+```
+
+
+```{r}
+fit3<-Arima(train_t,order = c(3, 2, 1))
+f3=forecast(fit3,h=5)
+```
+
+4. Use ets() function and obtain forecasts using exponential smoothing method.
+
+```{r}
+f4=forecast(ets(train_t,model="ZZZ"))
+```
+
+
+5. If you apply BoxCox transformation in the 2nd question, go back to original unit. Then calculate the accuarcy measures all methods. 
+
+```{r}
+ff1_o=InvBoxCox(f1$mean,lambda )
+ff2_o=InvBoxCox(f2$mean,lambda )
+ff3_o=InvBoxCox(f3$mean,lambda )
+ff4_o=InvBoxCox(f4$mean,lambda )
+```
+
+
+```{r}
+accuracy(ff1_o,test)
+```
+
+
+```{r}
+accuracy(ff2_o,test)
+```
+
+
+```{r}
+accuracy(ff3_o,test)
+```
+
+
+```{r}
+accuracy(ff4_o,test)
+```
+
+
+We can say that ETS outperfoms the other method according to MAPE.
+
+6. Draw the plot of the time series, forecasts and prediction intervals on the same plot.
+
+
+
+```{r}
+plot(bond)
+abline(v=2264)#show where forecast starts
+lines(ff1_o,col="red") #forecast values coming from fit 1
+#now we add prediction intervals for the first fitted models.
+lines(ff1_o-(2*(sqrt(var(ff1_o)))),col="red",lty=3)
+lines(ff1_o+(2*(sqrt(var(ff1_o)))),col="red",lty=3)
+#now we add forecast values obtained from the fit 2
+lines(ff2_o,col="blue")
+#now we add prediction intervals for the second fitted models.
+lines(ff2_o-(2*(sqrt(var(ff2_o)))),col="red",lty=3)
+lines(ff2_o+(2*(sqrt(var(ff2_o)))),col="red",lty=3)
+
+#now we add forecast values obtained from the fit 2
+lines(ff3_o,col="green")
+#now we add prediction intervals for the second fitted models.
+lines(ff3_o-(2*(sqrt(var(ff3_o)))),col="red",lty=3)
+lines(ff3_o+(2*(sqrt(var(ff3_o)))),col="red",lty=3)
+
+#now we add forecast values obtained from the fit 2
+lines(ff4_o,col="orange")
+#now we add prediction intervals for the second fitted models.
+lines(ff4_o-(2*(sqrt(var(ff4_o)))),col="red",lty=3)
+lines(ff4_o+(2*(sqrt(var(ff4_o)))),col="red",lty=3)
+
+legend("bottomleft",lty=1, col=c("black","red","blue","green","orange"),c("Data","fit1","fit2","fit3","ets"))
+
+```
+
+
